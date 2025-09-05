@@ -1,5 +1,75 @@
 import React from "react";
 
+const getDefBlock = (s: string) => {
+    return `<def>
+    ${s}
+</def>`;
+}
+
+const getTrunkModule = (src: string, maintainIndentation = false) => {
+
+    let formatedSrc = '';
+    if (!maintainIndentation) {
+        // Remove leading indentation from each line
+        const lines = src.split('\n');
+
+
+        for (let line of lines) {
+            line = line.trimEnd();
+            if (line === '') continue;
+            formatedSrc += `
+        ${line}`;
+        }
+    } else {
+        formatedSrc = src;
+    }
+
+    return `<function name=TrunkModule list={}>
+    <def module=".">
+        <var name=iBeg value="@userf.indent_begin();">
+        <var name=iEnd value="@userf.indent_end();">
+
+        ${formatedSrc}
+    </def>
+</function>`;
+}
+
+const getStatementSteps = () => {
+    return `<function name=StatementSteps list={}>
+    <return value={"I1"}>
+</function>`;
+}
+
+const getStatementModuleMain = (modeFlags = {includeStatic: false, includeResolution: false, includePdf: false}) => {
+
+    return `<function name=StatementModule_Main list={modeRequested}>
+        <if cond=("@modeRequested" == "static")>
+            <TEXT REF=STATEMENT>%Question;</TEXT>
+        <else cond=("@modeRequested" == "resolution")>  
+            <TEXT REF=STATEMENT>%Question;</TEXT>
+        <else cond=("@modeRequested" == "pdf")>
+            <TEXT REF=STATEMENT><span style="page-break-inside: avoid;">%Question;</span></TEXT>
+        </if>
+        <return value="STATEMENT">
+</function>`;
+} 
+
+const getStatementModule = (s: string) => {
+    return `<function name=StatementModule list={}>
+    <def module=".">
+        ${s}
+    </def>
+</function>`;
+}
+
+const getQuestionBlock = (s: string) => {
+    return `<QUESTION>
+    ${s}
+</QUESTION>`;
+}
+
+
+
 const SAMPLE = `<def>
 </def>
 
@@ -89,14 +159,172 @@ const SAMPLE = `<def>
 </ITEM>`;
 
 export default function Migration() {
+    let editorType = 'ansed'; // 
+
     const inputRef = React.useRef<HTMLTextAreaElement | null>(null);
     const outputRef = React.useRef<HTMLPreElement | null>(null);
     const [items, setItems] = React.useState<string[]>([]);
+    
+
+    function detectEditor(src: string) {
+        if (!src) return null;
+
+        // TODO: Need to revisit this if we have more editors in future
+        switch (true) {
+            case /<var\s+name=\.layoutTabed\.table/i.test(src):
+            case /\blayoutTabed\b/i.test(src):
+            case /\btabed\b/i.test(src):
+                editorType = "tabed";
+                break;
+            case /\%FIGED\(|\blayoutFiged\b|figed_/i.test(src):
+                editorType = "figed";
+                break;
+            case /\blayoutAnsed\b|\bansed\b/i.test(src):
+                editorType = "ansed";
+                break;
+        }
+    }
+
+    function getBlockBody(tag: string, s: string) {
+        if (!s) return undefined;
+        const re = new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`, "i");
+        const matches = s.match(re);
+        return matches ? matches[1] : undefined;
+    }
+
+    function getEditor(stepId = "I1") {
+        switch (editorType) {
+            case "tabed":
+                return `
+                <var name=${editorType}_editor_${stepId} value=@.toolLayout.createTool('${editorType}','${editorType}_${stepId}','editor',#{
+
+                });>
+                `;
+            case "figed":
+                return `
+                <var name=${editorType}_editor_${stepId} value=@.toolLayout.createTool('${editorType}','${editorType}_${stepId}','editor',#{
+
+                });>
+                `;
+            case "ansed":
+            default:
+                return `
+                <var name=${editorType}_editor_${stepId} value=@.toolLayout.createTool('${editorType}','${editorType}_${stepId}','editor',#{
+
+                });>
+                `;
+        }
+    }
+
+    function getStatementModuleOfStep(stepId = "I1", stepEditorType = editorType) {
+        return `
+            <function name=StatementModule_${stepId} list={modeRequested}>  
+                ${getEditor(stepId)}
+                <TEXT REF=INTERACTION>
+                    @iBeg;@${stepEditorType}_editor_${stepId};@iEnd;
+                </TEXT>
+                <return value="INTERACTION">
+          </function>
+        `;
+    }
+
+    function getAnsproModuleOfStep(id: string, stepEditorType: string) {
+        return `${id}:{"${stepEditorType}_${id}"}`;
+    }
+
+    function escapeForXml(s: any) {
+        if (s == null) return "";
+        return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+
+    function pruneTopDef(preQuestion: string) {
+        if (!preQuestion) return "";
+        const defMatch = preQuestion.match(/<def[^>]*>([\s\S]*?)<\/def>/i);
+        if (!defMatch) return preQuestion;
+        const defBody = defMatch[1];
+        const lines = defBody.split(/\r?\n/);
+        const kept = [];
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            kept.push(line);
+        }
+        const newDef = getDefBlock(kept.join('\n'));
+        const result = preQuestion.replace(defMatch[0], newDef);
+        return result;
+    }
 
     function migrateISL(src: string) {
         if (typeof src !== "string") return "";
 
-        return src;
+        const copySrc = src;
+
+        const preQuestionOfV1Idx = copySrc.indexOf("<QUESTION");
+        const preQuestionOfV1 = preQuestionOfV1Idx >= 0 ? copySrc.slice(0, copySrc.indexOf("<QUESTION")) : copySrc;
+
+        console.log("Def block:", preQuestionOfV1);
+
+        const questionBodyV1 = getBlockBody("QUESTION", copySrc) || "";
+
+        console.log("Question body V1:", questionBodyV1);
+
+        
+        const questionClose = copySrc.search(/<\/QUESTION>/i);
+
+        const trunkModule = getTrunkModule(questionBodyV1);
+
+        const statementSteps = getStatementSteps();
+
+        const algoSteps = [{
+                type: "STEP",
+                id: "I1",
+                editorType, // TODO: Need to revisit this if we have more editors in future
+                statmentModule: getStatementModuleOfStep(),
+                ansproModule: getAnsproModuleOfStep("I1", editorType), // TODO: Need to revisit this if we have more editors in future
+                htmlTeacherModule: getStatementModuleMain(),
+            }
+        ];
+
+        const stetementI1 = getStatementModule("I1");
+
+        return `${preQuestionOfV1}\n\n${trunkModule}\n\n${statementSteps}`;
+
+        const postQuestion = questionClose >= 0 ? src.slice(questionClose + ((src.match(/<\/QUESTION>/i) || [""])[0].length)) : "";
+
+        const txt_STATEMENT = getBlockBody("TEXT\\s+REF=STATEMENT", inner) || "";
+        const txt_RESOLUTION = getBlockBody("TEXT\\s+REF=RESOLUTION", inner) || "";
+
+        let out = "";
+        // out += (pre ? pre : "<def></def>\n<description></description>") + "\n";
+        // out += "<ITEM TITLE=\"@Title\">\n  <QUESTION>\n";
+        // out += "    <TEXT REF=STATEMENT>" + escapeForXml(txt_STATEMENT) + "</TEXT>\n";
+        // out += "    <TEXT REF=RESOLUTION>" + escapeForXml(txt_RESOLUTION) + "</TEXT>\n";
+        // out += "  </QUESTION>\n";
+        // out += (post || "") + "\n";
+        return out;
+    }
+
+    function simpleParseItems(src: string) {
+        const res: string[] = [];
+        const re = /<ITEM\b([\s\S]*?)>([\s\S]*?)<\/ITEM>/gi;
+        let m: RegExpExecArray | null;
+        while ((m = re.exec(src))) {
+            const attrs = m[1];
+            const t = /TITLE\s*=\s*"([^"]*)"/i.exec(attrs);
+            res.push(t ? t[1] : 'Untitled');
+        }
+        return res;
+    }
+
+    function onConvert() {
+        const text = inputRef.current?.value || "";
+        if (!text) return alert('Please paste Architecture 1 ISL code');
+
+        detectEditor(text);
+        console.log("Detected editor type:", editorType);
+
+        const converted = migrateISL(text);
+        if (outputRef.current) outputRef.current.textContent = converted;
+        setItems(simpleParseItems(text));
     }
 
     return (
