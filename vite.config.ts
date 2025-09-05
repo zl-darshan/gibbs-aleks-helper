@@ -3,7 +3,11 @@ import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "vite";
 import tsconfigPaths from "vite-tsconfig-paths";
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
   plugins: [tailwindcss(), reactRouter(), tsconfigPaths()],
-  base: '/gibbs-aleks-helper/',
-});
+  base: command === 'build' ? '/gibbs-aleks-helper/' : '/',
+  build: {
+    outDir: 'build/client',
+    assetsDir: 'assets',
+  },
+}));
