@@ -1,0 +1,37 @@
+name: Deploy to GitHub Pages
+
+on:
+    workflow_dispatch:
+
+jobs:
+    build:
+        runs-on: ubuntu-latest
+
+        steps:
+
+            # checkout repo
+          - name: Checkout
+            uses: actions/checkout@v3
+
+            # setup nodejs
+          - name: Setup Node
+            uses: actions/setup-node@v3
+            with:
+                node-version: 22
+
+            # install dependencies
+          - name: Install deps
+            run: |
+                npm install -g pnpm
+                pnpm install
+
+            # Build app
+          - name: Build
+            run: pnpm run build
+
+            # Deploy build/client folder to gh-pages branch
+          - name: Deploy
+            uses: peaceiris/actions-gh-pages@v3
+            with:
+                github_token: ${{ secrets.GITHUB_TOKEN }}
+                publish_dir: ./build/client
