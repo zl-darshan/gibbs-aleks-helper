@@ -1,6 +1,4 @@
-import React from "react";
-
-const SAMPLE = `<def>
+import{w as o,R as n,p as e}from"./chunk-PVWAREVJ-BX-UlHOX.js";const r=`<def>
 </def>
 
 <description>
@@ -86,47 +84,4 @@ const SAMPLE = `<def>
 
   </QUESTION>
 
-</ITEM>`;
-
-export default function Migration() {
-    const inputRef = React.useRef<HTMLTextAreaElement | null>(null);
-    const outputRef = React.useRef<HTMLPreElement | null>(null);
-    const [items, setItems] = React.useState<string[]>([]);
-
-    function migrateISL(src: string) {
-        if (typeof src !== "string") return "";
-
-        return src;
-    }
-
-    return (
-        <main className="container size-full">
-            <h1 className="text-xl mb-2">Arch1 → Arch2 Migration Tool</h1>
-            <p className="text-sm text-gray-600">Paste Architecture 1 content and press Convert.</p>
-
-            <div className="mb-4">
-                <textarea ref={inputRef} className="w-full p-2 border rounded" rows={12} />
-                <div className="mt-2 flex gap-2">
-                    <button onClick={() => { if (inputRef.current) inputRef.current.value = ""; }}>Clear</button>
-                    <button onClick={() => { if (inputRef.current) inputRef.current.value = SAMPLE.trim(); }}>Load Sample</button>
-                    <button onClick={onConvert}>Convert</button>
-                </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-                <div>
-                    <h2 className="font-semibold">Detected Items</h2>
-                    <ul className="mt-2">
-                        {items.length === 0 && <li className="text-sm text-gray-500">(no items found)</li>}
-                        {items.map((it, idx) => <li key={idx}>{idx + 1}. {it}</li>)}
-                    </ul>
-                </div>
-                <div>
-                    <h2 className="font-semibold">Converted Output</h2>
-                    <pre ref={outputRef} className="mt-2 p-2 bg-gray-900 text-white rounded h-72 overflow-auto"></pre>
-                </div>
-            </div>
-        </main>
-    );
-}
-
+</ITEM>`,m=o(function(){const t=n.useRef(null),l=n.useRef(null),[s,c]=n.useState([]);return e.jsxs("main",{className:"container size-full",children:[e.jsx("h1",{className:"text-xl mb-2",children:"Arch1 → Arch2 Migration Tool"}),e.jsx("p",{className:"text-sm text-gray-600",children:"Paste Architecture 1 content and press Convert."}),e.jsxs("div",{className:"mb-4",children:[e.jsx("textarea",{ref:t,className:"w-full p-2 border rounded",rows:12}),e.jsxs("div",{className:"mt-2 flex gap-2",children:[e.jsx("button",{onClick:()=>{t.current&&(t.current.value="")},children:"Clear"}),e.jsx("button",{onClick:()=>{t.current&&(t.current.value=r.trim())},children:"Load Sample"}),e.jsx("button",{onClick:onConvert,children:"Convert"})]})]}),e.jsxs("div",{className:"grid grid-cols-2 gap-4",children:[e.jsxs("div",{children:[e.jsx("h2",{className:"font-semibold",children:"Detected Items"}),e.jsxs("ul",{className:"mt-2",children:[s.length===0&&e.jsx("li",{className:"text-sm text-gray-500",children:"(no items found)"}),s.map((u,a)=>e.jsxs("li",{children:[a+1,". ",u]},a))]})]}),e.jsxs("div",{children:[e.jsx("h2",{className:"font-semibold",children:"Converted Output"}),e.jsx("pre",{ref:l,className:"mt-2 p-2 bg-gray-900 text-white rounded h-72 overflow-auto"})]})]})]})});export{m as default};
