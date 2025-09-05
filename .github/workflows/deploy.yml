@@ -4,7 +4,7 @@ on:
 #   workflow_dispatch:
     push:
         branches:
-          - master 
+          - master
 
 jobs:
     build:
@@ -30,6 +30,10 @@ jobs:
             # copy 404.html in build/client
           - name: Create 404.html
             run: node scripts/copy404.js
+
+            # debug purpose
+          - name: List build contents
+            run: ls -la build/client/
 
           - name: Upload Pages artifact
             uses: actions/upload-pages-artifact@v3
