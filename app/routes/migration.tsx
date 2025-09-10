@@ -16,50 +16,53 @@ const getTrunkModule = (src: string, maintainIndentation = false) => {
 
     for (let line of lines) {
       line = line.trimEnd();
-      if (line === '') continue;
+      if (line.includes('min_plugin') || line.includes('best_plugin')) continue;
       formatedSrc += `
-        ${line}`;
+      ${line}`;
     }
   } else {
     formatedSrc = src;
   }
 
-  return `<function name=TrunkModule list={}>
-  <def module=".">
-    <var name=iBeg value="@userf.indent_begin();">
-    <var name=iEnd value="@userf.indent_end();">
-
-    ${formatedSrc}
-  </def>
-</function>`;
+  return `
+  <function name=TrunkModule list={}>
+    <def module=".">
+      <var name=iBeg value="@userf.indent_begin();">
+      <var name=iEnd value="@userf.indent_end();">
+      ${formatedSrc}
+    </def>
+  </function>`;
 }
 
 const getStatementSteps = () => {
-  return `<function name=StatementSteps list={}>
+  return `
+  <function name=StatementSteps list={}>
     <return value={"I1"}>
-</function>`;
+  </function>`;
 }
 
 const getStatementModuleMain = (modeFlags = { includeStatic: false, includeResolution: false, includePdf: false }) => {
 
-  return `<function name=StatementModule_Main list={modeRequested}>
-    <if cond=("@modeRequested" == "static")>
-      <TEXT REF=STATEMENT>%Question;</TEXT>
-    <else cond=("@modeRequested" == "resolution")>  
-      <TEXT REF=STATEMENT>%Question;</TEXT>
-    <else cond=("@modeRequested" == "pdf")>
-      <TEXT REF=STATEMENT><span style="page-break-inside: avoid;">%Question;</span></TEXT>
-    </if>
-    <return value="STATEMENT">
-</function>`;
+  return `
+      <function name=StatementModule_Main list={modeRequested}>
+        <if cond=("@modeRequested" == "static")>
+          <TEXT REF=STATEMENT>%Question;</TEXT>
+        <else cond=("@modeRequested" == "resolution")>  
+          <TEXT REF=STATEMENT>%Question;</TEXT>
+        <else cond=("@modeRequested" == "pdf")>
+          <TEXT REF=STATEMENT><span style="page-break-inside: avoid;">%Question;</span></TEXT>
+        </if>
+        <return value="STATEMENT">
+      </function>`;
 }
 
 const getStatementModule = (s: string) => {
-  return `<function name=StatementModule list={}>
+  return `
+  <function name=StatementModule list={}>
     <def module=".">
-      ${s}
+        ${s}
     </def>
-</function>`;
+  </function>`;
 }
 
 const getQuestionBlock = (s: string) => {
@@ -219,40 +222,41 @@ export default function Migration() {
 
   function getStatementModuleOfStep(stepId = "I1", stepEditorType = editorType) {
     return `
-    <function name=StatementModule_${stepId} list={modeRequested}>  
+      <!-- *************************************** ${stepId} *************************************** -->
+      <function name=StatementModule_${stepId} list={modeRequested}>  
         ${getEditor(stepId)}
         <TEXT REF=INTERACTION>
             @iBeg;@${stepEditorType}_editor_${stepId};@iEnd;
         </TEXT>
         <return value="INTERACTION">
-  </function>`;
+      </function>`;
   }
 
   function getResolutionModuleSteps() {
-    return `<function name=ResolutionSteps list={}>
-      <return value={}>
-    </function>`;
+    return `  <function name=ResolutionSteps list={}>
+    <return value={}>
+  </function>`;
   }
 
   function getResolutionModuleMain({ includealternate = false } = {}) {
-    const resolutionText = includealternate ? `<if cond=("@modeRequested" == "static")>
-              <TEXT REF=RESOLUTION>%Explanation;</TEXT>
-            <else cond=("@modeRequested" == "alternate")>
-              <TEXT REF=RESOLUTION>%Alt;</TEXT>
-            </if>`
+    const resolutionText = includealternate ? `  <if cond=("@modeRequested" == "static")>
+          <TEXT REF=RESOLUTION>%Explanation;</TEXT>
+        <else cond=("@modeRequested" == "alternate")>
+          <TEXT REF=RESOLUTION>%Alt;</TEXT>
+        </if>`
       :`<TEXT REF=RESOLUTION>%Explanation;</TEXT>`
     return `<function name=ResolutionModule_Main list={modeRequested}>
       ${resolutionText}
-    <return value="RESOLUTION">
-  </function>
+        <return value="RESOLUTION">
+      </function>
   `;
   }
 
   function getResolutionModule(resolutionModuleMainSrc: string) {
-    return `<function name=ResolutionModule list={partsRequested}>
-      <def module=".">
-        ${resolutionModuleMainSrc}
-      </def>
+    return `  <function name=ResolutionModule list={partsRequested}>
+    <def module=".">
+      ${resolutionModuleMainSrc}
+    </def>
   </function>`;
   }
 
@@ -261,25 +265,25 @@ export default function Migration() {
   }
 
   function getAnsproModule(returnValue: string) {
-    return `<function name=AnsproModule list={}>
-      <return value=#{${returnValue}}>
+    return `  <function name=AnsproModule list={}>
+    <return value=#{${returnValue}}>
   </function>`;
   }
 
   function getTeacherModule(steps: { type: string; id: string; editorType: string; statmentModule: string; ansproModule: string; htmlTeacherModule: string; }[]) {
-    return `<function name=TeacherModule list={partRequested,mode}>
-      &(teacherAnswerHash=#{};;);
-      ${steps.map(s => `<var name=teacherAnswerHash["${s.id}"] value="@teacher>`).join('\n      ')}
-      <return value=@teacherAnswerHash>
+    return `  <function name=TeacherModule list={partRequested,mode}>
+    &(teacherAnswerHash=#{};;);
+    ${steps.map(s => `<var name=teacherAnswerHash["${s.editorType}_${s.id}"] value="@teacher">`).join('\n      ')}
+    <return value=@teacherAnswerHash>
   </function>`;
   }
 
   function getHtmlTeacherModule() {
-    return `<function name=HtmlTeacherModule list={partRequested}>
-      <unvar name=teacherAnswerHTML>
-      <var name=teacherAnswerHTML value="&(text(TEACHER))">
-      <return value="@teacherAnswerHTML">
-  </function>`;
+    return `  <function name=HtmlTeacherModule list={partRequested}>
+    <unvar name=teacherAnswerHTML>
+    <var name=teacherAnswerHTML value="&(text(TEACHER))">
+    <return value="@teacherAnswerHTML">
+  </function>\n`;
   }
 
   function escapeForXml(s: any) {
@@ -335,7 +339,7 @@ export default function Migration() {
 
     const statementModuleMain = getStatementModuleMain();
     const stepsStatementModules = algoSteps.map(s => s.statmentModule).join('\n');
-    const statementModule = getStatementModule(`${statementModuleMain}\n\n${stepsStatementModules}`);
+    const statementModule = getStatementModule(`${statementModuleMain}\n${stepsStatementModules}`);
 
     const resolutionSteps = getResolutionModuleSteps();
 
@@ -354,7 +358,7 @@ export default function Migration() {
 
     // = getStatementModule(algoSteps.map(s => s.statmentModule).join('\n'));
 
-    const questionBlock = `<QUESTION>${trunkModule}\n\n${statementSteps}\n\n${statementModule}\n\n${resolutionSteps}\n\n${resolutionModule}\n\n${ansproModule}\n\n${teacherModule}\n\n${htmlTeacherModule}</QUESTION>`;
+    const questionBlock = `<QUESTION>${trunkModule}\n\n${statementSteps}\n\n${statementModule}\n\n${resolutionSteps}\n\n${resolutionModule}\n\n${ansproModule}\n\n${teacherModule}\n\n${htmlTeacherModule}</QUESTION>\n</ITEM>`;
 
     return `${preQuestionOfV1}\n\n${questionBlock}\n`;
 
