@@ -44,11 +44,11 @@ const getStatementModuleMain = (modeFlags = { includeStatic: false, includeResol
 
   return `<function name=StatementModule_Main list={modeRequested}>
     <if cond=("@modeRequested" == "static")>
-        <TEXT REF=STATEMENT>%Question;</TEXT>
+      <TEXT REF=STATEMENT>%Question;</TEXT>
     <else cond=("@modeRequested" == "resolution")>  
-        <TEXT REF=STATEMENT>%Question;</TEXT>
+      <TEXT REF=STATEMENT>%Question;</TEXT>
     <else cond=("@modeRequested" == "pdf")>
-        <TEXT REF=STATEMENT><span style="page-break-inside: avoid;">%Question;</span></TEXT>
+      <TEXT REF=STATEMENT><span style="page-break-inside: avoid;">%Question;</span></TEXT>
     </if>
     <return value="STATEMENT">
 </function>`;
@@ -225,12 +225,61 @@ export default function Migration() {
             @iBeg;@${stepEditorType}_editor_${stepId};@iEnd;
         </TEXT>
         <return value="INTERACTION">
+  </function>`;
+  }
+
+  function getResolutionModuleSteps() {
+    return `<function name=ResolutionSteps list={}>
+      <return value={}>
+    </function>`;
+  }
+
+  function getResolutionModuleMain({ includealternate = false } = {}) {
+    const resolutionText = includealternate ? `<if cond=("@modeRequested" == "static")>
+              <TEXT REF=RESOLUTION>%Explanation;</TEXT>
+            <else cond=("@modeRequested" == "alternate")>
+              <TEXT REF=RESOLUTION>%Alt;</TEXT>
+            </if>`
+      :`<TEXT REF=RESOLUTION>%Explanation;</TEXT>`
+    return `<function name=ResolutionModule_Main list={modeRequested}>
+      ${resolutionText}
+    <return value="RESOLUTION">
   </function>
-        `;
+  `;
+  }
+
+  function getResolutionModule(resolutionModuleMainSrc: string) {
+    return `<function name=ResolutionModule list={partsRequested}>
+      <def module=".">
+        ${resolutionModuleMainSrc}
+      </def>
+  </function>`;
   }
 
   function getAnsproModuleOfStep(id: string, stepEditorType: string) {
     return `${id}:{"${stepEditorType}_${id}"}`;
+  }
+
+  function getAnsproModule(returnValue: string) {
+    return `<function name=AnsproModule list={}>
+      <return value=#{${returnValue}}>
+  </function>`;
+  }
+
+  function getTeacherModule(steps: { type: string; id: string; editorType: string; statmentModule: string; ansproModule: string; htmlTeacherModule: string; }[]) {
+    return `<function name=TeacherModule list={partRequested,mode}>
+      &(teacherAnswerHash=#{};;);
+      ${steps.map(s => `<var name=teacherAnswerHash["${s.id}"] value="@teacher>`).join('\n      ')}
+      <return value=@teacherAnswerHash>
+  </function>`;
+  }
+
+  function getHtmlTeacherModule() {
+    return `<function name=HtmlTeacherModule list={partRequested}>
+      <unvar name=teacherAnswerHTML>
+      <var name=teacherAnswerHTML value="&(text(TEACHER))">
+      <return value="@teacherAnswerHTML">
+  </function>`;
   }
 
   function escapeForXml(s: any) {
@@ -282,12 +331,32 @@ export default function Migration() {
       statmentModule: getStatementModuleOfStep(),
       ansproModule: getAnsproModuleOfStep("I1", editorType), // TODO: Need to revisit this if we have more editors in future
       htmlTeacherModule: getStatementModuleMain(),
-    }
-    ];
+    }];
 
-    const stetementI1 = getStatementModule("I1");
+    const statementModuleMain = getStatementModuleMain();
+    const stepsStatementModules = algoSteps.map(s => s.statmentModule).join('\n');
+    const statementModule = getStatementModule(`${statementModuleMain}\n\n${stepsStatementModules}`);
 
-    return `${preQuestionOfV1}\n\n<QUESTION>${trunkModule}\n\n${statementSteps}</QUESTION>`;
+    const resolutionSteps = getResolutionModuleSteps();
+
+    const resolutionModuleMain = getResolutionModuleMain({includealternate: true});
+    const resolutionModule = getResolutionModule(resolutionModuleMain);
+    
+
+    const ansproModuleReturnValue = algoSteps.map(s => s.ansproModule).join(', ');
+    const ansproModule = getAnsproModule(ansproModuleReturnValue);
+
+    const teacherModule = getTeacherModule(algoSteps);
+
+    const htmlTeacherModule = getHtmlTeacherModule();
+    // const stepsHtmlTeacherModules = algoSteps.map(s => s.htmlTeacherModule).join('\n');
+
+
+    // = getStatementModule(algoSteps.map(s => s.statmentModule).join('\n'));
+
+    const questionBlock = `<QUESTION>${trunkModule}\n\n${statementSteps}\n\n${statementModule}\n\n${resolutionSteps}\n\n${resolutionModule}\n\n${ansproModule}\n\n${teacherModule}\n\n${htmlTeacherModule}</QUESTION>`;
+
+    return `${preQuestionOfV1}\n\n${questionBlock}\n`;
 
     const postQuestion = questionClose >= 0 ? src.slice(questionClose + ((src.match(/<\/QUESTION>/i) || [""])[0].length)) : "";
 
