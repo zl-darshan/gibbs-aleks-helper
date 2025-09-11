@@ -361,20 +361,6 @@ export default function Migration() {
     const questionBlock = `<QUESTION>${trunkModule}\n\n${statementSteps}\n\n${statementModule}\n\n${resolutionSteps}\n\n${resolutionModule}\n\n${ansproModule}\n\n${teacherModule}\n\n${htmlTeacherModule}</QUESTION>\n</ITEM>`;
 
     return `${preQuestionOfV1}\n\n${questionBlock}\n`;
-
-    const postQuestion = questionClose >= 0 ? src.slice(questionClose + ((src.match(/<\/QUESTION>/i) || [""])[0].length)) : "";
-
-    const txt_STATEMENT = getBlockBody("TEXT\\s+REF=STATEMENT", inner) || "";
-    const txt_RESOLUTION = getBlockBody("TEXT\\s+REF=RESOLUTION", inner) || "";
-
-    let out = "";
-    // out += (pre ? pre : "<def></def>\n<description></description>") + "\n";
-    // out += "<ITEM TITLE=\"@Title\">\n  <QUESTION>\n";
-    // out += "    <TEXT REF=STATEMENT>" + escapeForXml(txt_STATEMENT) + "</TEXT>\n";
-    // out += "    <TEXT REF=RESOLUTION>" + escapeForXml(txt_RESOLUTION) + "</TEXT>\n";
-    // out += "  </QUESTION>\n";
-    // out += (post || "") + "\n";
-    return out;
   }
 
   function simpleParseItems(src: string) {
@@ -396,6 +382,8 @@ export default function Migration() {
     detectEditor(text);
     console.log("Detected editor type:", editorType);
 
+    setItems([editorType]);
+
     const converted = migrateISL(text);
     convertedCode = converted;
     if (outputRef.current) outputRef.current.textContent = converted;
@@ -407,7 +395,6 @@ export default function Migration() {
     await navigator.clipboard.writeText(convertedCode);
     alert('Copied to clipboard');
     console.log('Copied to clipboard');
-
   }
 
   return (
@@ -424,7 +411,7 @@ export default function Migration() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="flex gap-4">
         <div>
           <h2 className="font-semibold">Detected Items</h2>
           <ul className="mt-2">
@@ -432,7 +419,7 @@ export default function Migration() {
             {items.map((it, idx) => <li key={idx}>{idx + 1}. {it}</li>)}
           </ul>
         </div>
-        <div>
+        <div className="flex-2">
           <h2 className="font-semibold">Converted Output</h2>
           <button onClick={copyToClipBoard}>Copy</button>
           <pre ref={outputRef} className="mt-2 p-2 bg-gray-900 text-white rounded h-72 overflow-auto"></pre>
