@@ -163,8 +163,8 @@ const SAMPLE = `<def>
 
 export default function Migration() {
   let editorType = 'ansed';
-  let convertedCode = '';
 
+  const convertedCodeRef = React.useRef('');
   const inputRef = React.useRef<HTMLTextAreaElement | null>(null);
   const outputRef = React.useRef<HTMLPreElement | null>(null);
   const [items, setItems] = React.useState<string[]>([]);
@@ -385,14 +385,14 @@ export default function Migration() {
     setItems([editorType]);
 
     const converted = migrateISL(text);
-    convertedCode = converted;
+    convertedCodeRef.current = converted;
     if (outputRef.current) outputRef.current.textContent = converted;
     // setItems(simpleParseItems(text));
   }
 
   async function copyToClipBoard() {
-    if (!convertedCode) return;
-    await navigator.clipboard.writeText(convertedCode);
+    if (!convertedCodeRef.current) return;
+    await navigator.clipboard.writeText(convertedCodeRef.current);
     alert('Copied to clipboard');
     console.log('Copied to clipboard');
   }
