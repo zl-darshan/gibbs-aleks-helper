@@ -27,8 +27,6 @@ const getTrunkModule = (src: string, maintainIndentation = false) => {
   return `
   <function name=TrunkModule list={}>
     <def module=".">
-      <var name=iBeg value="@userf.indent_begin();">
-      <var name=iEnd value="@userf.indent_end();">
       ${formatedSrc}
     </def>
   </function>`;
@@ -225,9 +223,7 @@ export default function Migration() {
       <!-- *************************************** ${stepId} *************************************** -->
       <function name=StatementModule_${stepId} list={modeRequested}>  
         ${getEditor(stepId)}
-        <TEXT REF=INTERACTION>
-            @iBeg;@${stepEditorType}_editor_${stepId};@iEnd;
-        </TEXT>
+        <TEXT REF=INTERACTION>@${stepEditorType}_editor_${stepId};</TEXT>
         <return value="INTERACTION">
       </function>`;
   }
