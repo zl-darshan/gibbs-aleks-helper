@@ -47,13 +47,12 @@ const getTrunkModule = (src: string, maintainIndentation = false) => {
     formatedSrc = src;
   }
 
-  formatedSrc = formatedSrc.replace(/^[ \t]*<TEXT REF=STATEMENT>.*?<\/TEXT>[ \t]*\r?\n?/gms, '');
-  formatedSrc = formatedSrc.replace(/^[ \t]*<TEXT REF=STATEMENT_ONPRINT_INANSWER>.*?<\/TEXT>[ \t]*\r?\n?/gms, '');
-  formatedSrc = formatedSrc.replace(/^[ \t]*<TEXT REF=STATEMENT_DISPLAY>.*?<\/TEXT>[ \t]*\r?\n?/gms, '');
-  formatedSrc = formatedSrc.replace(/^[ \t]*<TEXT REF=RESOLUTION>.*?<\/TEXT>[ \t]*\r?\n?/gms, '');
-  formatedSrc = formatedSrc.replace(/^[ \t]*<TEXT REF=RESOLUTION_alternate>.*?<\/TEXT>[ \t]*\r?\n?/gms, '');
-  formatedSrc = formatedSrc.replace(/^[ \t]*<TEXT REF=RESOLUTION_detail>.*?<\/TEXT>[ \t]*\r?\n?/gms, '');
-
+  formatedSrc = formatedSrc.replace(/^[ \t]*<TEXT REF=STATEMENT>.*?<\/TEXT>[ \t]*\r?\n?/gmsi, '');
+  formatedSrc = formatedSrc.replace(/^[ \t]*<TEXT REF=STATEMENT_ONPRINT_INANSWER>.*?<\/TEXT>[ \t]*\r?\n?/gmsi, '');
+  formatedSrc = formatedSrc.replace(/^[ \t]*<TEXT REF=STATEMENT_DISPLAY>.*?<\/TEXT>[ \t]*\r?\n?/gmsi, '');
+  formatedSrc = formatedSrc.replace(/^[ \t]*<TEXT REF=RESOLUTION>.*?<\/TEXT>[ \t]*\r?\n?/gmsi, '');
+  formatedSrc = formatedSrc.replace(/^[ \t]*<TEXT REF=RESOLUTION_alternate>.*?<\/TEXT>[ \t]*\r?\n?/gmsi, '');
+  formatedSrc = formatedSrc.replace(/^[ \t]*<TEXT REF=RESOLUTION_detail>.*?<\/TEXT>[ \t]*\r?\n?/gmsi, '');
 
   return `
   <function name=TrunkModule list={}>
@@ -72,9 +71,9 @@ const getStatementSteps = () => {
 
 const getStatementModuleMain = (trunkModuleSrc: string) => {
 
-  const statementText = (trunkModuleSrc || "").match(/<TEXT REF=STATEMENT>(.*?)<\/TEXT>/s)?.[1].trimEnd();
-  const statementResolutionText = (trunkModuleSrc || "").match(/<TEXT REF=STATEMENT_DISPLAY>(.*?)<\/TEXT>/s)?.[1].trimEnd();
-  const statementPDFText = (trunkModuleSrc || "").match(/<TEXT REF=STATEMENT_ONPRINT_INANSWER>(.*?)<\/TEXT>/s)?.[1].trimEnd();
+  const statementText = (trunkModuleSrc || "").match(/<TEXT REF=STATEMENT>(.*?)<\/TEXT>/si)?.[1].trimEnd();
+  const statementResolutionText = (trunkModuleSrc || "").match(/<TEXT REF=STATEMENT_DISPLAY>(.*?)<\/TEXT>/si)?.[1].trimEnd();
+  const statementPDFText = (trunkModuleSrc || "").match(/<TEXT REF=STATEMENT_ONPRINT_INANSWER>(.*?)<\/TEXT>/si)?.[1].trimEnd();
 
   if (statementResolutionText || statementPDFText) {
     let statementModuleMain =  `
@@ -289,9 +288,9 @@ export default function Migration() {
 
   function getResolutionModuleMain(trunkModuleSrc: string) {
     
-  const resolutionText = (trunkModuleSrc || "").match(/<TEXT REF=RESOLUTION>(.*?)<\/TEXT>/s)?.[1].trimEnd(); // removes the last new line if there are multiline string is present in match result.
-  const resolutionAlternateText = (trunkModuleSrc || "").match(/<TEXT REF=RESOLUTION_alternate>(.*?)<\/TEXT>/s)?.[1].trimEnd();
-  const resolutionMoreDetailsText = (trunkModuleSrc || "").match(/<TEXT REF=RESOLUTION_detail>(.*?)<\/TEXT>/s)?.[1].trimEnd();
+  const resolutionText = (trunkModuleSrc || "").match(/<TEXT REF=RESOLUTION>(.*?)<\/TEXT>/si)?.[1].trimEnd(); // removes the last new line if there are multiline string is present in match result.
+  const resolutionAlternateText = (trunkModuleSrc || "").match(/<TEXT REF=RESOLUTION_alternate>(.*?)<\/TEXT>/si)?.[1].trimEnd();
+  const resolutionMoreDetailsText = (trunkModuleSrc || "").match(/<TEXT REF=RESOLUTION_detail>(.*?)<\/TEXT>/si)?.[1].trimEnd();
 
   if (resolutionAlternateText || resolutionMoreDetailsText) {
     let resolutionModuleMain =  `
