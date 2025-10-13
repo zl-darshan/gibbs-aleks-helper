@@ -17,5 +17,6 @@ body {
     padding: 4px;
     border-radius: 8px;
     background-color: #006A7C;
+    cursor: pointer;
   }
 }

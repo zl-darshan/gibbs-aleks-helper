@@ -1,9 +1,25 @@
 import React from "react";
 
-const getDefBlock = (s: string) => {
-  return `<def>
-  ${s}
-</def>`;
+const getFilteredDefBlock = (src: string) => {
+  return src.replace(
+    /\n(?: |	)*<include module=(layoutFiged|layoutTabed|layoutAnsed|userf|userfLayout|userfJS)>.*$/gm,
+    ''
+  ).replace(/\n[ \t]*&\( *@userfJS\.initJSUse.*$/gm, '');
+;
+
+  let filterdDefBlock = '';
+  const lines = src.split('\n');
+
+    for (let line of lines) {
+      line = line.trimEnd();
+      if (line.includes('layoutFiged') ||
+        line.includes('layoutAnsed') ||
+        line.includes('layoutTabed') ||
+        line.includes('userf')
+      ) continue;
+      filterdDefBlock += `
+      ${line}`;
+    }
 }
 
 const getTrunkModule = (src: string, maintainIndentation = false) => {
@@ -13,10 +29,17 @@ const getTrunkModule = (src: string, maintainIndentation = false) => {
     // Remove leading indentation from each line
     const lines = src.split('\n');
 
-
     for (let line of lines) {
       line = line.trimEnd();
-      if (line.includes('min_plugin') || line.includes('best_plugin')) continue;
+      if (line.includes('min_plugin') ||
+        line.includes('best_plugin') ||
+        line.includes('layoutTabed') ||
+        line.includes('layoutTabedJS') ||
+        line.includes('layoutFiged') ||
+        line.includes('layoutFigedJS') ||
+        line.includes('layoutAnsed') ||
+        line.includes('layoutAnsedJS')
+      ) continue;
       formatedSrc += `
       ${line}`;
     }
@@ -62,13 +85,6 @@ const getStatementModule = (s: string) => {
     </def>
   </function>`;
 }
-
-const getQuestionBlock = (s: string) => {
-  return `<QUESTION>
-    ${s}
-</QUESTION>`;
-}
-
 
 
 const SAMPLE = `<def>
@@ -160,31 +176,36 @@ const SAMPLE = `<def>
 </ITEM>`;
 
 export default function Migration() {
-  let editorType = 'ansed';
+  // let editorType = '';
 
   const convertedCodeRef = React.useRef('');
   const inputRef = React.useRef<HTMLTextAreaElement | null>(null);
   const outputRef = React.useRef<HTMLPreElement | null>(null);
   const [items, setItems] = React.useState<string[]>([]);
+  const [editorType, setEditorType] = React.useState<string>("");
 
 
   function detectEditor(src: string) {
-    if (!src) return null;
+    if (!src) return "";
 
+    let detectedEditorType = '';
     // TODO: Need to revisit this if we have more editors in future
     switch (true) {
       case /<var\s+name=\.layoutTabed\.table/i.test(src):
       case /\blayoutTabed\b/i.test(src):
       case /\btabed\b/i.test(src):
-        editorType = "tabed";
+        detectedEditorType = "tabed";
         break;
       case /\%FIGED\(|\blayoutFiged\b|figed_/i.test(src):
-        editorType = "figed";
+        detectedEditorType = "figed";
         break;
       case /\blayoutAnsed\b|\bansed\b/i.test(src):
-        editorType = "ansed";
+        detectedEditorType = "ansed";
         break;
     }
+
+    setEditorType(detectedEditorType);
+    return detectedEditorType;
   }
 
   function getBlockBody(tag: string, s: string) {
@@ -194,27 +215,27 @@ export default function Migration() {
     return matches ? matches[1] : undefined;
   }
 
-  function getEditor(stepId = "I1") {
-    switch (editorType) {
+  function getEditor(stepId = "I1", stepEditorType: string) {
+    switch (stepEditorType) {
       case "tabed":
         return `
-                <var name=${editorType}_editor_${stepId} value=@.toolLayout.createTool('${editorType}','${editorType}_${stepId}','editor',#{
-
-                });>
-                `;
+        <var name=${stepEditorType}_editor_${stepId} value=@.toolLayout.createTool('${stepEditorType}','${stepEditorType}_${stepId}','editor',#{
+          recall: text(DEFAULT)
+        });>
+        `;
       case "figed":
         return `
-                <var name=${editorType}_editor_${stepId} value=@.toolLayout.createTool('${editorType}','${editorType}_${stepId}','editor',#{
-
-                });>
-                `;
+        <var name=${stepEditorType}_editor_${stepId} value=@.toolLayout.createTool('${stepEditorType}','${stepEditorType}_${stepId}','editor',#{
+          recall: text(DEFAULT)
+        });>
+        `;
       case "ansed":
       default:
         return `
-                <var name=${editorType}_editor_${stepId} value=@.toolLayout.createTool('${editorType}','${editorType}_${stepId}','editor',#{
-
-                });>
-                `;
+        <var name=${stepEditorType}_editor_${stepId} value=@.toolLayout.createTool('${stepEditorType}','${stepEditorType}_${stepId}','editor',#{
+          recall: text(DEFAULT)
+        });>
+        `;
     }
   }
 
@@ -222,7 +243,7 @@ export default function Migration() {
     return `
       <!-- *************************************** ${stepId} *************************************** -->
       <function name=StatementModule_${stepId} list={modeRequested}>  
-        ${getEditor(stepId)}
+        ${getEditor(stepId, stepEditorType)}
         <TEXT REF=INTERACTION>@${stepEditorType}_editor_${stepId};</TEXT>
         <return value="INTERACTION">
       </function>`;
@@ -282,28 +303,16 @@ export default function Migration() {
   </function>\n`;
   }
 
-  function escapeForXml(s: any) {
-    if (s == null) return "";
-    return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  function getAnswerProcessingFn(id: string, stepEditorType: string) {
+    return `  <!-- *************************************** Answer processing of ${id} *************************************** -->
+  <function name=anspro_${stepEditorType}_${id} list={studentAnswer,teacherAnswer}>
+    <evaluation rule=arith student="@studentAnswer;" teacher="@teacherAnswer;" >
+    <feedback>
+    </feedback>
+  </function>`;
   }
 
-  function pruneTopDef(preQuestion: string) {
-    if (!preQuestion) return "";
-    const defMatch = preQuestion.match(/<def[^>]*>([\s\S]*?)<\/def>/i);
-    if (!defMatch) return preQuestion;
-    const defBody = defMatch[1];
-    const lines = defBody.split(/\r?\n/);
-    const kept = [];
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
-      kept.push(line);
-    }
-    const newDef = getDefBlock(kept.join('\n'));
-    const result = preQuestion.replace(defMatch[0], newDef);
-    return result;
-  }
-
-  function migrateISL(src: string) {
+  function migrateISL(src: string, explicitEditorType = "") {
     if (typeof src !== "string") return "";
 
     const copySrc = src;
@@ -311,26 +320,24 @@ export default function Migration() {
     const preQuestionOfV1Idx = copySrc.indexOf("<QUESTION");
     const preQuestionOfV1 = preQuestionOfV1Idx >= 0 ? copySrc.slice(0, copySrc.indexOf("<QUESTION")) : copySrc;
 
-    console.log("Def block:", preQuestionOfV1);
+    const filterdDefBlock = getFilteredDefBlock(preQuestionOfV1);
 
     const questionBodyV1 = getBlockBody("QUESTION", copySrc) || "";
-
-    console.log("Question body V1:", questionBodyV1);
-
-
-    const questionClose = copySrc.search(/<\/QUESTION>/i);
 
     const trunkModule = getTrunkModule(questionBodyV1);
 
     const statementSteps = getStatementSteps();
 
+    console.log({editorType, explicitEditorType}, explicitEditorType ?? editorType);
+
     const algoSteps = [{
       type: "STEP",
       id: "I1",
-      editorType, // TODO: Need to revisit this if we have more editors in future
-      statmentModule: getStatementModuleOfStep(),
-      ansproModule: getAnsproModuleOfStep("I1", editorType), // TODO: Need to revisit this if we have more editors in future
+      editorType: explicitEditorType ?? editorType, // TODO: Need to revisit this if we have more editors in future
+      statmentModule: getStatementModuleOfStep("I1", explicitEditorType ?? editorType),
+      ansproModule: getAnsproModuleOfStep("I1", explicitEditorType ?? editorType), // TODO: Need to revisit this if we have more editors in future
       htmlTeacherModule: getStatementModuleMain(),
+      answerProcessingFn: getAnswerProcessingFn("I1", explicitEditorType ?? editorType),
     }];
 
     const statementModuleMain = getStatementModuleMain();
@@ -345,45 +352,40 @@ export default function Migration() {
 
     const ansproModuleReturnValue = algoSteps.map(s => s.ansproModule).join(', ');
     const ansproModule = getAnsproModule(ansproModuleReturnValue);
-
+    
     const teacherModule = getTeacherModule(algoSteps);
-
+    
     const htmlTeacherModule = getHtmlTeacherModule();
-    // const stepsHtmlTeacherModules = algoSteps.map(s => s.htmlTeacherModule).join('\n');
+    const ansproProcessingFnReturnValue = algoSteps.map(s => s.answerProcessingFn).join(', ');
 
+    const questionBlock = `<QUESTION>${trunkModule}\n\n${statementSteps}\n\n${statementModule}\n\n${resolutionSteps}\n\n${resolutionModule}\n\n${ansproModule}\n\n${teacherModule}\n\n${htmlTeacherModule}</QUESTION>\n\n${ansproProcessingFnReturnValue}\n</ITEM>`;
 
-    // = getStatementModule(algoSteps.map(s => s.statmentModule).join('\n'));
-
-    const questionBlock = `<QUESTION>${trunkModule}\n\n${statementSteps}\n\n${statementModule}\n\n${resolutionSteps}\n\n${resolutionModule}\n\n${ansproModule}\n\n${teacherModule}\n\n${htmlTeacherModule}</QUESTION>\n</ITEM>`;
-
-    return `${preQuestionOfV1}\n\n${questionBlock}\n`;
+    return `${filterdDefBlock}\n\n${questionBlock}\n`;
   }
 
-  function simpleParseItems(src: string) {
-    const res: string[] = [];
-    const re = /<ITEM\b([\s\S]*?)>([\s\S]*?)<\/ITEM>/gi;
-    let m: RegExpExecArray | null;
-    while ((m = re.exec(src))) {
-      const attrs = m[1];
-      const t = /TITLE\s*=\s*"([^"]*)"/i.exec(attrs);
-      res.push(t ? t[1] : 'Untitled');
+  function onUpdateEditorType(inputEditorType: string) {
+    setEditorType(inputEditorType);
+    setTimeout(() => onConvert({ explicitEditorType: inputEditorType }), 0);
+  }
+
+  function onConvert({shouldDetectEditor = false, explicitEditorType = ''}) {
+    
+    const inputSrc = inputRef.current?.value || "";
+    if (!inputSrc) {
+      setEditorType('')
+      return alert('Please paste Architecture 1 ISL code');
     }
-    return res;
-  }
 
-  function onConvert() {
-    const text = inputRef.current?.value || "";
-    if (!text) return alert('Please paste Architecture 1 ISL code');
+    if (shouldDetectEditor) 
+      explicitEditorType = detectEditor(inputSrc);
 
-    detectEditor(text);
-    console.log("Detected editor type:", editorType);
+    console.log({editorType});
+    if (explicitEditorType) setItems([explicitEditorType]);
+    else setItems([editorType]);
 
-    setItems([editorType]);
-
-    const converted = migrateISL(text);
+    const converted = migrateISL(inputSrc, explicitEditorType);
     convertedCodeRef.current = converted;
     if (outputRef.current) outputRef.current.textContent = converted;
-    // setItems(simpleParseItems(text));
   }
 
   async function copyToClipBoard() {
@@ -393,32 +395,65 @@ export default function Migration() {
     console.log('Copied to clipboard');
   }
 
+  const showOutput = items.length !== 0;
+
+  console.log({editorType})
+
   return (
     <main className="container size-full">
-      <h1 className="text-xl mb-2">Arch1 → Arch2 Migration Tool</h1>
-      <p className="text-sm text-gray-600">Paste Architecture 1 content and press Convert.</p>
-
-      <div className="mb-4">
-        <textarea ref={inputRef} className="w-full p-2 border rounded" rows={12} />
-        <div className="mt-2 flex gap-2">
-          <button onClick={() => { if (inputRef.current) inputRef.current.value = ""; }}>Clear</button>
-          <button onClick={() => { if (inputRef.current) inputRef.current.value = SAMPLE.trim(); }}>Load Sample</button>
-          <button onClick={onConvert}>Convert</button>
-        </div>
+      <div className="flex gap-2 items-center">
+        <h1 className="text-xl">Arch1 → Arch2 Migration Tool</h1>
+        <p className="text-sm text-gray-600">(Paste Architecture 1 content and press Convert.)</p>
       </div>
 
-      <div className="flex gap-4">
-        <div>
-          <h2 className="font-semibold">Detected Items</h2>
-          <ul className="mt-2">
-            {items.length === 0 && <li className="text-sm text-gray-500">(no items found)</li>}
-            {items.map((it, idx) => <li key={idx}>{idx + 1}. {it}</li>)}
-          </ul>
+      <div className="mb-4 flex gap-2">
+        <div className="flex flex-col gap-16">
+          <div className="mt-2 flex gap-2 flex-wrap content-start justify-center">
+            <button className="max-h-max" onClick={() => { if (inputRef.current) inputRef.current.value = ""; }}>Clear</button>
+            <button className="max-h-max" onClick={() => { if (inputRef.current) inputRef.current.value = SAMPLE.trim(); }}>Load Sample</button>
+            <button className="max-h-max" onClick={() => onConvert({shouldDetectEditor: true})}>Convert</button>
+          </div>
+          <div className="text-center">
+            <h2 className="font-semibold">Detected Items</h2>
+            <ul className="m-4">
+              {items.length === 0 && <li className="text-sm text-gray-500">(no items found)</li>}
+              {items.map((it, idx) => <li key={idx}><b>{editorType}</b></li>)} { /* // TODO: Need to revisit this if we have more editors in future */ }
+            </ul>
+          </div>
         </div>
-        <div className="flex-2">
-          <h2 className="font-semibold">Converted Output</h2>
-          <button onClick={copyToClipBoard}>Copy</button>
-          <pre ref={outputRef} className="mt-2 p-2 bg-gray-900 text-white rounded h-72 overflow-auto"></pre>
+        <textarea ref={inputRef} className="w-full p-2 border rounded" rows={12} />
+      </div>
+
+      <div className="flex gap-4 w-full">
+        { showOutput &&
+          <div className="min-w-[12%] text-center">
+            <h2 className="font-semibold">Change EditorType :</h2>
+            <div className="flex flex-wrap gap-4 content-center flex-col">
+              <label><input name="editorType" value="ansed" checked={editorType == "ansed"} type="radio" onClick={
+                e => onUpdateEditorType('ansed')
+              }/>Ansed</label>
+              <label><input name="editorType" value="tabed" checked={editorType == "tabed"} type="radio" onClick={
+                e => onUpdateEditorType('tabed')
+              }/>Tabed</label>
+              <label><input name="figed" value="figed" checked={editorType == "figed"} type="radio" onClick={
+                e => onUpdateEditorType('figed')
+              }/>Figed</label>
+            </div>
+          </div>
+        }
+        <div className="w-[86%] flex-grow">
+          <div className="relative">
+          {
+            showOutput &&
+            <button className="absolute top-2 right-2 !p-2 !mr-4" onClick={copyToClipBoard} aria-label="Copy output to clipboard">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+              </svg>
+            </button>
+          }
+            <pre ref={outputRef} className={!showOutput ? 'w-0' : 'p-2 bg-gray-900 text-white rounded h-90 overflow-auto'}></pre>
+          </div>
         </div>
       </div>
     </main>
