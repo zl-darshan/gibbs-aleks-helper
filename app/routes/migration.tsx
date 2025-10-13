@@ -47,6 +47,14 @@ const getTrunkModule = (src: string, maintainIndentation = false) => {
     formatedSrc = src;
   }
 
+  formatedSrc = formatedSrc.replace(/^[ \t]*<TEXT REF=STATEMENT>.*?<\/TEXT>[ \t]*\r?\n?/gms, '');
+  formatedSrc = formatedSrc.replace(/^[ \t]*<TEXT REF=STATEMENT_ONPRINT_INANSWER>.*?<\/TEXT>[ \t]*\r?\n?/gms, '');
+  formatedSrc = formatedSrc.replace(/^[ \t]*<TEXT REF=STATEMENT_DISPLAY>.*?<\/TEXT>[ \t]*\r?\n?/gms, '');
+  formatedSrc = formatedSrc.replace(/^[ \t]*<TEXT REF=RESOLUTION>.*?<\/TEXT>[ \t]*\r?\n?/gms, '');
+  formatedSrc = formatedSrc.replace(/^[ \t]*<TEXT REF=RESOLUTION_alternate>.*?<\/TEXT>[ \t]*\r?\n?/gms, '');
+  formatedSrc = formatedSrc.replace(/^[ \t]*<TEXT REF=RESOLUTION_detail>.*?<\/TEXT>[ \t]*\r?\n?/gms, '');
+
+
   return `
   <function name=TrunkModule list={}>
     <def module=".">
@@ -62,17 +70,41 @@ const getStatementSteps = () => {
   </function>`;
 }
 
-const getStatementModuleMain = (modeFlags = { includeStatic: false, includeResolution: false, includePdf: false }) => {
+const getStatementModuleMain = (trunkModuleSrc: string) => {
 
-  return `
+  const statementText = (trunkModuleSrc || "").match(/<TEXT REF=STATEMENT>(.*?)<\/TEXT>/s)?.[1].trimEnd();
+  const statementResolutionText = (trunkModuleSrc || "").match(/<TEXT REF=STATEMENT_DISPLAY>(.*?)<\/TEXT>/s)?.[1].trimEnd();
+  const statementPDFText = (trunkModuleSrc || "").match(/<TEXT REF=STATEMENT_ONPRINT_INANSWER>(.*?)<\/TEXT>/s)?.[1].trimEnd();
+
+  if (statementResolutionText || statementPDFText) {
+    let statementModuleMain =  `
       <function name=StatementModule_Main list={modeRequested}>
         <if cond=("@modeRequested" == "static")>
-          <TEXT REF=STATEMENT>%Question;</TEXT>
+          <TEXT REF=STATEMENT>${statementText}</TEXT>`;
+
+    if (statementResolutionText) {
+      statementModuleMain += `
         <else cond=("@modeRequested" == "resolution")>  
-          <TEXT REF=STATEMENT>%Question;</TEXT>
+          <TEXT REF=STATEMENT>${statementText} ${statementResolutionText}</TEXT>`;
+    }
+
+    if (statementPDFText) {
+      statementModuleMain += `
         <else cond=("@modeRequested" == "pdf")>
-          <TEXT REF=STATEMENT><span style="page-break-inside: avoid;">%Question;</span></TEXT>
+          <TEXT REF=STATEMENT>${statementText} ${statementPDFText}</TEXT>`;
+    }
+
+    statementModuleMain += `
         </if>
+        <return value="STATEMENT">
+      </function>`;
+
+    return statementModuleMain;
+
+  } else 
+  return `
+      <function name=StatementModule_Main list={modeRequested}>
+        <TEXT REF=STATEMENT>${statementText}</TEXT>
         <return value="STATEMENT">
       </function>`;
 }
@@ -255,18 +287,43 @@ export default function Migration() {
   </function>`;
   }
 
-  function getResolutionModuleMain({ includealternate = false } = {}) {
-    const resolutionText = includealternate ? `  <if cond=("@modeRequested" == "static")>
-          <TEXT REF=RESOLUTION>%Explanation;</TEXT>
-        <else cond=("@modeRequested" == "alternate")>
-          <TEXT REF=RESOLUTION>%Alt;</TEXT>
-        </if>`
-      :`<TEXT REF=RESOLUTION>%Explanation;</TEXT>`
-    return `<function name=ResolutionModule_Main list={modeRequested}>
-      ${resolutionText}
+  function getResolutionModuleMain(trunkModuleSrc: string) {
+    
+  const resolutionText = (trunkModuleSrc || "").match(/<TEXT REF=RESOLUTION>(.*?)<\/TEXT>/s)?.[1].trimEnd(); // removes the last new line if there are multiline string is present in match result.
+  const resolutionAlternateText = (trunkModuleSrc || "").match(/<TEXT REF=RESOLUTION_alternate>(.*?)<\/TEXT>/s)?.[1].trimEnd();
+  const resolutionMoreDetailsText = (trunkModuleSrc || "").match(/<TEXT REF=RESOLUTION_detail>(.*?)<\/TEXT>/s)?.[1].trimEnd();
+
+  if (resolutionAlternateText || resolutionMoreDetailsText) {
+    let resolutionModuleMain =  `
+      <function name=ResolutionModule_Main list={modeRequested}>
+        <if cond=("@modeRequested" == "static")>
+          <TEXT REF=RESOLUTION>${resolutionText}</TEXT>`;
+
+    if (resolutionAlternateText) {
+      resolutionModuleMain += `
+        <else cond=("@modeRequested" == "resolution")>  
+          <TEXT REF=RESOLUTION>${resolutionText} ${resolutionAlternateText}</TEXT>`;
+    }
+
+    if (resolutionMoreDetailsText) {
+      resolutionModuleMain += `
+        <else cond=("@modeRequested" == "pdf")>
+          <TEXT REF=RESOLUTION>${resolutionText} ${resolutionMoreDetailsText}</TEXT>`;
+    }
+
+    resolutionModuleMain += `
+        </if>
         <return value="RESOLUTION">
-      </function>
-  `;
+      </function>`;
+
+    return resolutionModuleMain;
+
+  } else 
+  return `
+      <function name=ResolutionModule_Main list={modeRequested}>
+        <TEXT REF=RESOLUTION>${resolutionText}</TEXT>
+        <return value="RESOLUTION">
+      </function>`;
   }
 
   function getResolutionModule(resolutionModuleMainSrc: string) {
@@ -328,28 +385,25 @@ export default function Migration() {
 
     const statementSteps = getStatementSteps();
 
-    console.log({editorType, explicitEditorType}, explicitEditorType ?? editorType);
-
     const algoSteps = [{
       type: "STEP",
       id: "I1",
       editorType: explicitEditorType ?? editorType, // TODO: Need to revisit this if we have more editors in future
       statmentModule: getStatementModuleOfStep("I1", explicitEditorType ?? editorType),
       ansproModule: getAnsproModuleOfStep("I1", explicitEditorType ?? editorType), // TODO: Need to revisit this if we have more editors in future
-      htmlTeacherModule: getStatementModuleMain(),
+      htmlTeacherModule: (function () { return '' })(),
       answerProcessingFn: getAnswerProcessingFn("I1", explicitEditorType ?? editorType),
     }];
 
-    const statementModuleMain = getStatementModuleMain();
+    const statementModuleMain = getStatementModuleMain(questionBodyV1);
     const stepsStatementModules = algoSteps.map(s => s.statmentModule).join('\n');
     const statementModule = getStatementModule(`${statementModuleMain}\n${stepsStatementModules}`);
 
     const resolutionSteps = getResolutionModuleSteps();
 
-    const resolutionModuleMain = getResolutionModuleMain({includealternate: true});
+    const resolutionModuleMain = getResolutionModuleMain(questionBodyV1);
     const resolutionModule = getResolutionModule(resolutionModuleMain);
     
-
     const ansproModuleReturnValue = algoSteps.map(s => s.ansproModule).join(', ');
     const ansproModule = getAnsproModule(ansproModuleReturnValue);
     
@@ -379,7 +433,6 @@ export default function Migration() {
     if (shouldDetectEditor) 
       explicitEditorType = detectEditor(inputSrc);
 
-    console.log({editorType});
     if (explicitEditorType) setItems([explicitEditorType]);
     else setItems([editorType]);
 
@@ -392,12 +445,9 @@ export default function Migration() {
     if (!convertedCodeRef.current) return;
     await navigator.clipboard.writeText(convertedCodeRef.current);
     alert('Copied to clipboard');
-    console.log('Copied to clipboard');
   }
 
   const showOutput = items.length !== 0;
-
-  console.log({editorType})
 
   return (
     <main className="container size-full">
